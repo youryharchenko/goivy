@@ -9,7 +9,19 @@ import (
 	"golang.org/x/image/colornames"
 )
 
+type Environment struct {
+}
+
+func (env *Environment) Run(win *pixelgl.Window, config goivy.Config) {
+	for !win.Closed() {
+		win.Clear(config.BgColor)
+
+		win.Update()
+	}
+}
+
 func main() {
+	env := &Environment{}
 
 	goivy.NewScreen(
 		goivy.Config{
@@ -20,13 +32,5 @@ func main() {
 			},
 			BgColor: colornames.Blanchedalmond,
 		},
-	).Show(
-		func(win *pixelgl.Window, config goivy.Config) {
-			for !win.Closed() {
-				win.Clear(config.BgColor)
-
-				win.Update()
-			}
-		},
-	)
+	).Show(env.Run)
 }
