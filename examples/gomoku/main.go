@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"image/color"
 	_ "image/png"
 	"log"
 
@@ -12,15 +13,19 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/faiface/pixel/text"
 	"github.com/youryharchenko/goivy"
 	"golang.org/x/image/colornames"
+	"golang.org/x/image/font/basicfont"
 )
 
 type Environment struct {
 	//
 	//batch *pixel.Batch
 	//
-	imd *imdraw.IMDraw
+	imd   *imdraw.IMDraw
+	atlas *text.Atlas
+	txt   *text.Text
 	//
 	cam          pixel.Matrix
 	camPos       pixel.Vec
@@ -40,7 +45,8 @@ type Environment struct {
 	ch      []float64
 	changed bool
 	//
-	steps []Step
+	steps  []Step
+	colors [2]color.Color
 }
 
 func (env *Environment) Draw(win *pixelgl.Window, config goivy.Config) {
@@ -63,15 +69,39 @@ func (env *Environment) Draw(win *pixelgl.Window, config goivy.Config) {
 			env.imd.Push(pixel.V(x, l))
 			env.imd.Line(2)
 		}
-		for range env.steps {
+
+		for i, st := range env.steps {
+			x := env.ch[st.x]
+			y := env.ch[st.y]
 			env.imd.Color = colornames.Black
-			env.imd.Push(pixel.V(0, 0))
+			env.imd.Push(pixel.V(x, y))
 			env.imd.Circle(env.d/2, 0)
+
+			c := i % 2
+			env.imd.Color = env.colors[c]
+			env.imd.Push(pixel.V(x, y))
+			env.imd.Circle(env.d/2-1, 0)
+		}
+
+		env.txt.Clear()
+		for i, st := range env.steps {
+			x := env.ch[st.x]
+			y := env.ch[st.y]
+
+			c := 1 - i%2
+
+			s := fmt.Sprintf("%d", i+1)
+			env.txt.Color = env.colors[c]
+			env.txt.Dot.X = x - env.txt.BoundsOf(s).W()/2
+			env.txt.Dot.Y = y - env.txt.BoundsOf(s).H()/4
+			fmt.Fprint(env.txt, s)
+			log.Println("Draw Text Bounds", env.txt.Bounds())
 		}
 	}
 
 	win.Clear(config.BgColor)
 	env.imd.Draw(win)
+	env.txt.Draw(win, pixel.IM)
 	win.Update()
 
 	env.frames++
@@ -162,7 +192,8 @@ func (env *Environment) fillCoord() {
 func main() {
 
 	env := &Environment{
-		imd: imdraw.New(nil),
+		imd:   imdraw.New(nil),
+		atlas: text.NewAtlas(basicfont.Face7x13, text.ASCII),
 		//
 		camPos:       pixel.ZV,
 		camSpeed:     500.0,
@@ -176,10 +207,12 @@ func main() {
 		d:   40,
 		dim: 15,
 		//
-		steps: []Step{{7, 7}},
+		steps:  []Step{{7, 7}, {7, 8}, {8, 8}},
+		colors: [2]color.Color{colornames.Black, colornames.White},
 	}
 
 	env.fillCoord()
+	env.txt = text.New(pixel.ZV, env.atlas)
 
 	goivy.NewScreen(
 		goivy.Config{
