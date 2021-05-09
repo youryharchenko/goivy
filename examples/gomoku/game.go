@@ -253,6 +253,7 @@ func (net *Net) checkDraw() bool {
 }
 
 func (net *Net) calcPoint() Step {
+
 	a := Step{}
 	c := len(net.steps)%2 + 1
 	ret := net.findSlot4(c)
@@ -333,8 +334,9 @@ func (net *Net) calcPoint() Step {
 	if len(ret) == 0 {
 		ret = net.calcPointMaxRate(c)
 	}
-
+	//log.Println(ret)
 	n := rand.Intn(len(ret))
+	//log.Println(n)
 	a.x = ret[n][0]
 	a.y = ret[n][1]
 	return a
@@ -445,36 +447,25 @@ type Step struct {
 	y int
 }
 
-//type Steps map[string]interface{}
-//type Pack struct {
-//	Game   Steps  `json:"game"`
-//	Status string `json:"status"`
-//}
-
 func calcStep(steps []Step) ([]Step, string) {
-	//log.Println(string(body))
-	//var pack Pack
-
-	//json.Unmarshal(body, &pack)
-	//log.Println(steps)
-	//arStep := pack.Game
 	status := ""
 	net := NewNet(steps)
-	if !net.checkWin() && !net.checkDraw() {
+
+	if net.checkWin() {
+		status = "win"
+	} else if net.checkDraw() {
+		status = "draw"
+	} else {
 		newStep := net.calcPoint()
 		net.addStep(len(steps), newStep)
 		steps = append(steps, newStep) //[2]float64{8, 8})
-		if !net.checkWin() && !net.checkDraw() {
-			status = "play"
+		if net.checkWin() {
+			status = "win"
+		} else if net.checkDraw() {
+			status = "draw"
 		} else {
-			status = "over"
+			status = "play"
 		}
-	} else {
-		status = "over"
 	}
-
-	//newGame, _ := json.Marshal(pack) //"{\"game\":[[7,7], [8,8]]}"
-	//response := string(newGame)
-	//log.Println(response)
 	return steps, status
 }

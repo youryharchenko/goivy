@@ -6,6 +6,7 @@ import (
 	"image/color"
 	_ "image/png"
 	"log"
+	"math/rand"
 
 	"math"
 	"time"
@@ -14,18 +15,28 @@ import (
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
+	"github.com/golang/freetype/truetype"
 	"github.com/youryharchenko/goivy"
 	"golang.org/x/image/colornames"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font"
 )
+
+//go:embed 	Itim-Regular.ttf
+var fivo []byte
 
 type Environment struct {
 	//
+	fontFace font.Face
+	//
 	//batch *pixel.Batch
 	//
-	imd   *imdraw.IMDraw
-	atlas *text.Atlas
-	txt   *text.Text
+	imd        *imdraw.IMDraw
+	atlas      *text.Atlas
+	txt        *text.Text
+	head       *text.Text
+	headText   string
+	status     *text.Text
+	statusText string
 	//
 	cam          pixel.Matrix
 	camPos       pixel.Vec
@@ -45,14 +56,39 @@ type Environment struct {
 	ch      []float64
 	changed bool
 	//
-	steps  []Step
-	colors [2]color.Color
+	steps      []Step
+	colors     [2]color.Color
+	colorNames [2]string
+	//
+	play bool
+	calc bool
+	auto bool
 }
 
 func (env *Environment) Draw(win *pixelgl.Window, config goivy.Config) {
 	if env.changed {
 		env.imd = imdraw.New(nil)
 		l := float64(env.dim) * env.d / 2
+
+		env.head.Clear()
+		env.head.Color = colornames.Black
+		env.head.Dot.X = -env.txt.BoundsOf(env.headText).W() / 2
+		env.head.Dot.Y = l + env.txt.BoundsOf(env.headText).H()*2
+		fmt.Fprint(env.head, env.headText)
+
+		env.status.Clear()
+		env.status.Color = colornames.Black
+		env.status.Dot.X = -env.txt.BoundsOf(env.statusText).W() / 2
+		env.status.Dot.Y = -(l + env.txt.BoundsOf(env.statusText).H()*2)
+		fmt.Fprint(env.status, env.statusText)
+
+		env.imd.Clear()
+
+		env.imd.Color = colornames.Black
+		env.imd.Push(pixel.V(-l, -l))
+		env.imd.Push(pixel.V(l, l))
+		env.imd.Rectangle(3)
+
 		for _, y := range env.cv {
 			env.imd.Color = colornames.Black
 			env.imd.EndShape = imdraw.RoundEndShape
@@ -95,13 +131,15 @@ func (env *Environment) Draw(win *pixelgl.Window, config goivy.Config) {
 			env.txt.Dot.X = x - env.txt.BoundsOf(s).W()/2
 			env.txt.Dot.Y = y - env.txt.BoundsOf(s).H()/4
 			fmt.Fprint(env.txt, s)
-			log.Println("Draw Text Bounds", env.txt.Bounds())
+			//log.Println("Draw Text Bounds", env.txt.Bounds())
 		}
 	}
 
 	win.Clear(config.BgColor)
 	env.imd.Draw(win)
+	env.head.Draw(win, pixel.IM)
 	env.txt.Draw(win, pixel.IM)
+	env.status.Draw(win, pixel.IM)
 	win.Update()
 
 	env.frames++
@@ -112,11 +150,44 @@ func (env *Environment) Draw(win *pixelgl.Window, config goivy.Config) {
 func (env *Environment) Input(win *pixelgl.Window, config goivy.Config) {
 
 	if win.JustReleased(pixelgl.MouseButtonLeft) {
-		log.Println("MouseButtonLeft JustReleased", env.cam.Unproject(win.MousePosition()))
-		//tree := pixel.NewSprite(env.spritesheet, env.treesFrames[rand.Intn(len(env.treesFrames))])
-		//mouse := env.cam.Unproject(win.MousePosition())
-		//tree.Draw(env.batch, pixel.IM.Scaled(pixel.ZV, 4).Moved(mouse))
+		coord := env.cam.Unproject(win.MousePosition())
+		//log.Println("MouseButtonLeft JustReleased", coord)
+
+		step, err := env.GetStepFromCoord(coord)
+		if err != nil {
+			return
+		}
+
 		env.changed = true
+		if env.play {
+			env.steps = append(env.steps, step)
+			env.calc = true
+		}
+	}
+
+	if win.JustReleased(pixelgl.KeyPageDown) {
+		env.changed = true
+		if env.play {
+			env.calc = true
+		}
+	}
+
+	if win.JustReleased(pixelgl.KeyHome) {
+		env.statusText = ""
+		env.steps = []Step{{7, 7}}
+		env.changed = true
+		env.play = true
+		env.calc = true
+		env.auto = false
+	}
+
+	if win.JustReleased(pixelgl.KeyEnd) {
+		env.changed = true
+		if env.play {
+			env.auto = true
+		}
+		env.calc = true
+
 	}
 
 	if win.Pressed(pixelgl.KeyLeft) {
@@ -153,6 +224,9 @@ func (env *Environment) Run(win *pixelgl.Window, config goivy.Config) {
 	//}
 
 	env.changed = true
+	env.play = true
+	env.calc = true
+	env.auto = false
 
 	for !win.Closed() {
 		env.dt = time.Since(env.last).Seconds()
@@ -160,10 +234,32 @@ func (env *Environment) Run(win *pixelgl.Window, config goivy.Config) {
 
 		env.cam = pixel.IM.Scaled(env.camPos, env.camZoom).Moved(win.Bounds().Center().Sub(env.camPos))
 		win.SetMatrix(env.cam)
+		win.SetSmooth(true)
+
+		stat := ""
+		if env.play && env.calc {
+			env.steps, stat = calcStep(env.steps)
+			env.Draw(win, config)
+			if stat != "play" {
+				env.play = false
+				if stat == "win" {
+					stat = fmt.Sprintf("%s won!", env.colorNames[1-len(env.steps)%2])
+				} else if stat == "draw" {
+					stat = "Draw!"
+				}
+				log.Println("Game over:", stat, len(env.steps))
+				env.statusText = stat
+			} else {
+				log.Println("Game go on:", stat, len(env.steps))
+			}
+			if !env.auto {
+				env.calc = false
+			}
+			env.changed = true
+		}
 
 		env.Input(win, config)
 
-		win.SetSmooth(true)
 		env.Draw(win, config)
 
 		select {
@@ -173,6 +269,29 @@ func (env *Environment) Run(win *pixelgl.Window, config goivy.Config) {
 		default:
 		}
 	}
+}
+
+func (env *Environment) GetStepFromCoord(coord pixel.Vec) (step Step, err error) {
+	x := -1
+	y := -1
+	for i, cx := range env.ch {
+		if coord.X > cx-env.d/2 && coord.X < cx+env.d/2 {
+			x = i
+			break
+		}
+	}
+	for i, cy := range env.cv {
+		if coord.Y > cy-env.d/2 && coord.Y < cy+env.d/2 {
+			y = i
+			break
+		}
+	}
+	if x < 0 || y < 0 {
+		err = fmt.Errorf("incorrect step")
+		return
+	}
+	step = Step{x, y}
+	return
 }
 
 func (env *Environment) fillCoord() {
@@ -191,9 +310,11 @@ func (env *Environment) fillCoord() {
 
 func main() {
 
+	rand.Seed(time.Now().Unix())
+
 	env := &Environment{
-		imd:   imdraw.New(nil),
-		atlas: text.NewAtlas(basicfont.Face7x13, text.ASCII),
+		imd: imdraw.New(nil),
+		//
 		//
 		camPos:       pixel.ZV,
 		camSpeed:     500.0,
@@ -207,12 +328,19 @@ func main() {
 		d:   40,
 		dim: 15,
 		//
-		steps:  []Step{{7, 7}, {7, 8}, {8, 8}},
-		colors: [2]color.Color{colornames.Black, colornames.White},
+		steps:      []Step{{7, 7}},
+		colors:     [2]color.Color{colornames.Black, colornames.White},
+		colorNames: [2]string{"Black", "White"},
 	}
 
 	env.fillCoord()
+
+	env.fontFace = loadFont(18)
+	env.atlas = text.NewAtlas(env.fontFace, text.ASCII)
 	env.txt = text.New(pixel.ZV, env.atlas)
+	env.head = text.New(pixel.ZV, env.atlas)
+	env.headText = "Human Step - MouseLeftButton, Computer Step - PageDown, Auto Play - End, New Game - Home"
+	env.status = text.New(pixel.ZV, env.atlas)
 
 	goivy.NewScreen(
 		goivy.Config{
@@ -224,4 +352,23 @@ func main() {
 			BgColor: colornames.Lightgrey,
 		},
 	).Show(env.Run)
+}
+
+func loadFont(size float64) font.Face {
+
+	font, err := truetype.Parse(fivo)
+	if err != nil {
+		panic(err)
+	}
+
+	face := truetype.NewFace(font, &truetype.Options{
+		Size: size,
+		//DPI:               0,
+		//Hinting:           0,
+		GlyphCacheEntries: 1,
+		//SubPixelsX:        0,
+		//SubPixelsY:        0,
+	})
+
+	return face
 }
