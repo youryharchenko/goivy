@@ -254,7 +254,6 @@ func (net *Net) checkDraw() bool {
 
 func (net *Net) calcPoint() Step {
 
-	a := Step{}
 	c := len(net.steps)%2 + 1
 	ret := net.findSlot4(c)
 	if len(ret) == 0 {
@@ -337,19 +336,18 @@ func (net *Net) calcPoint() Step {
 	//log.Println(ret)
 	n := rand.Intn(len(ret))
 	//log.Println(n)
-	a.x = ret[n][0]
-	a.y = ret[n][1]
-	return a
+
+	return ret[n]
 }
 
-func (net *Net) findSlot4(c int) [][]int {
-	ret := [][]int{}
+func (net *Net) findSlot4(c int) []Step {
+	ret := []Step{}
 	//msg := fmt.Sprintf("%v :: find_slot_4(%v,%v)", c)
 	for _, s := range net.active_slots[c] {
 		if s.r == 4 {
 			for _, p := range s.points {
 				if p.s == 0 {
-					elm := []int{p.x, p.y}
+					elm := Step{p.x, p.y}
 					ret = append(ret, elm)
 					//msg := fmt.Sprintf("%v :: find_slot_4 ->(%v,%v)", c)
 				}
@@ -362,8 +360,8 @@ func (net *Net) findSlot4(c int) [][]int {
 	return ret
 }
 
-func (net *Net) findPointX(c int, r int, b int) [][]int {
-	ret := [][]int{}
+func (net *Net) findPointX(c int, r int, b int) []Step {
+	ret := []Step{}
 	//msg := fmt.Sprintf("%v :: find_point_x(%v,%v)", c, r, b)
 	for _, p := range net.empty_points {
 		i := 0
@@ -371,7 +369,7 @@ func (net *Net) findPointX(c int, r int, b int) [][]int {
 			if s.s == c && s.r > r {
 				i += 1
 				if i > b {
-					elm := []int{p.x, p.y}
+					elm := Step{p.x, p.y}
 					ret = append(ret, elm)
 					//msg = fmt.Sprintf("%v :: find_point_x(%v,%v) -> (%v, %v)", c, r, b, elm[0], elm[1])
 				}
@@ -384,8 +382,8 @@ func (net *Net) findPointX(c int, r int, b int) [][]int {
 	return ret
 }
 
-func (net *Net) calcPointMaxRate(c int) [][]int {
-	ret := [][]int{}
+func (net *Net) calcPointMaxRate(c int) []Step {
+	ret := []Step{}
 	r := -1
 	d := 0
 	i := 0
@@ -404,13 +402,13 @@ func (net *Net) calcPointMaxRate(c int) [][]int {
 		if d > r {
 			i = 1
 			r = d
-			ret = [][]int{}
-			elm := []int{p.x, p.y}
+			ret = []Step{}
+			elm := Step{p.x, p.y}
 			ret = append(ret, elm)
 			//msg = fmt.Sprintf("%v :: point_max_rate(%v,%v) -> (%v, %v)", c, i, r, elm[0], elm[1])
 		} else if d == r {
 			i += 1
-			elm := []int{p.x, p.y}
+			elm := Step{p.x, p.y}
 			ret = append(ret, elm)
 			//msg = fmt.Sprintf("%v :: point_max_rate(%v,%v) -> (%v, %v)", c, i, r, elm[0], elm[1])
 		}
@@ -441,7 +439,6 @@ func (net *Net) findSlot(a []*Slot, s *Slot) int {
 	return -1
 }
 
-//type Step [2]float64
 type Step struct {
 	x int
 	y int
@@ -458,7 +455,7 @@ func calcStep(steps []Step) ([]Step, string) {
 	} else {
 		newStep := net.calcPoint()
 		net.addStep(len(steps), newStep)
-		steps = append(steps, newStep) //[2]float64{8, 8})
+		steps = append(steps, newStep)
 		if net.checkWin() {
 			status = "win"
 		} else if net.checkDraw() {

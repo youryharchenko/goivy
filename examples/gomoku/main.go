@@ -158,6 +158,12 @@ func (env *Environment) Input(win *pixelgl.Window, config goivy.Config) {
 			return
 		}
 
+		for _, s := range env.steps {
+			if step.x == s.x && step.y == s.y {
+				return
+			}
+		}
+
 		env.changed = true
 		if env.play {
 			env.steps = append(env.steps, step)
@@ -188,6 +194,10 @@ func (env *Environment) Input(win *pixelgl.Window, config goivy.Config) {
 		}
 		env.calc = true
 
+	}
+
+	if win.JustReleased(pixelgl.KeyEscape) {
+		win.SetClosed(true)
 	}
 
 	if win.Pressed(pixelgl.KeyLeft) {
@@ -339,7 +349,7 @@ func main() {
 	env.atlas = text.NewAtlas(env.fontFace, text.ASCII)
 	env.txt = text.New(pixel.ZV, env.atlas)
 	env.head = text.New(pixel.ZV, env.atlas)
-	env.headText = "Human Step - MouseLeftButton, Computer Step - PageDown, Auto Play - End, New Game - Home"
+	env.headText = "Human Step - MouseLeftButton, Computer Step - PageDown, Auto Play - End, New Game - Home, Exit - Esc"
 	env.status = text.New(pixel.ZV, env.atlas)
 
 	goivy.NewScreen(
