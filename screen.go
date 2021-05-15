@@ -3,7 +3,7 @@ package goivy
 import (
 	"image/color"
 
-	"github.com/faiface/pixel/pixelgl"
+	"github.com/youryharchenko/goivy/pixelgl"
 )
 
 type Screen struct {

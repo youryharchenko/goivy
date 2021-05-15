@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/pixelgl"
 	"github.com/youryharchenko/goivy"
+	"github.com/youryharchenko/goivy/pixelgl"
 	"golang.org/x/image/colornames"
 )
 

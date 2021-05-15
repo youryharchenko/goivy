@@ -1,6 +1,6 @@
 package main
 
-import "github.com/youryharchenko/goivy/nk"
+import nk "github.com/youryharchenko/goivy/nko"
 
 const (
 	EASY uint32 = iota
@@ -11,14 +11,13 @@ func main() {
 
 	ctx := &nk.Context{}
 
-	if nk.Begin(ctx, "Demo", &nk.Rect{50, 50, 200, 200},
-		nk.NK_WINDOW_BORDER|nk.NK_WINDOW_MOVABLE|nk.NK_WINDOW_SCALABLE|
-			nk.NK_WINDOW_CLOSABLE|nk.NK_WINDOW_MINIMIZABLE|nk.NK_WINDOW_TITLE) {
-		//enum {EASY, HARD};
-		op := EASY
-		property := 20
+	if ctx.Begin("Demo", &nk.Rect{50, 50, 200, 200},
+		nk.Flags(nk.NK_WINDOW_BORDER|nk.NK_WINDOW_MOVABLE|nk.NK_WINDOW_SCALABLE|
+			nk.NK_WINDOW_CLOSABLE|nk.NK_WINDOW_MINIMIZABLE|nk.NK_WINDOW_TITLE)) {
+		//op := EASY
+		//property := 20
 
-		nk.LayoutRowStatic(ctx, 30, 80, 1)
+		//nk.LayoutRowStatic(ctx, 30, 80, 1)
 
 		// if (nk_button_label(ctx, "button"))
 		// 	fprintf(stdout, "button pressed\n");

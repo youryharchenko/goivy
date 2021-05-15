@@ -13,10 +13,10 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
-	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"github.com/golang/freetype/truetype"
 	"github.com/youryharchenko/goivy"
+	"github.com/youryharchenko/goivy/pixelgl"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 )
